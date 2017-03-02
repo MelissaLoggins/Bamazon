@@ -25,7 +25,7 @@ connection.connect(function(err) {
 
 // display all of the items available for sale. Include the ids, names, and prices of products for sale.
 var printTable = function() {
-  connection.query('SELECT * FROM Products', function(err, res) {
+  connection.query('SELECT * FROM products', function(err, res) {
       console.log("");
       console.log("----------------------------------------------------");
       for (var i = 0; i < res.length; i++) {
@@ -42,22 +42,22 @@ printTable();
 function questions() {
 inquirer.prompt([
 	{
+	name: "id",	
 	type: "input",
-	message: "Hello. Thank you for visiting Melissa's Fine Jewelry. Please select which item you wish to purchase.",
-	name: "id"
+	message: "Hello. Thank you for visiting Melissa's Fine Jewelry. Please select which item you wish to purchase."
 },{
-
-
 	// ask/prompt how many units of the product they would like to buy.
+	name: "quantity",
 	type: "input",
-	message: "How many would you like?",
-	name: "quantity"
+	message: "How many would you like?"
+	
 
 }]).then(function (answers) {
 
 
 // check if your store has enough of the product to meet the customer's request. If not, log "Insufficient quantity!", and then prevent the order from going through.
-var productNumber = answers.id 
+ productNumber = answers.id 
+ itemQuantity = answers.quantity;
 
 connection.query('SELECT * FROM products WHERE ?', {item_id: productNumber}, function(err, data) {
 	if (err) throw err;
@@ -67,20 +67,28 @@ connection.query('SELECT * FROM products WHERE ?', {item_id: productNumber}, fun
 	console.log(answers.quantity);
 	console.log(item);
 
-	if (answers.quantity < item.inventory) {
 
 
 	// if your store does have enough of the product, you should fulfill the customer's order.Update the SQL database to reflect the remaining quantity.
-	connection.query('Update products SET inventory =' + answers.quantity + ' WHERE inventory = '+ (item.inventory - answers.quantity), function(err, data1) {
+	connection.query('SELECT item_id, product_name, price, stock_quantity FROM products WHERE item_id= ' + productNumber,
+		function(err, res) {
 		if (err) throw err;
-
-		console.log(data1);
-	});
-   }
-   else {
-  	console.log("We're sorry. There isn't enough of this item in stock. Please enter a different quanity.")
-   }
-  });
+		if (res[0].stock_quantity < itemQuantity) {
+		console.log("We\'re sorry, but we do not have that many items in stock at this time. Please select an amount that is less than " + res[0].stock_quantity);
+	} else {
+		connection.query("UPDATE products SET ? WHERE ?",
+			[{stock_quantity:res[0].stock_quantity - itemQuantity}, {item_id: productNumber}],
+			function(err, result){});
+		if (itemQuantity === '1') {
+			console.log("Total: $" + (res[0].price * itemQuantity) + " for your purchase of " + itemQuantity + " " + res[0].product_name);
+		} else {
+			console.log("Total: $" + (res[0].price * itemQuantity) + " for your purchase of " + itemQuantity + " " + res[0].product_name);
+		}
+			console.log("Inventory has been updated.");
+			printTable();
+		}
+     });
+   });
  });
-};
+}
 // Once the update goes through, show the customer the total cost of their purchase.
